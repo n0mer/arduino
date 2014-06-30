@@ -43,11 +43,15 @@ LiquidCrystal lcd(7, 8, 9, 10, 11, 12);
 
 // game score
 int score = 0;
+int joyPinX = 0;
+int joyPinY = 1;
+
+int truckPositionX;
+int truckPositionY;
+int guyPositionX;
+int guyPositionY;
 
 boolean IS_OVER = false;
-
-// current row for a human
-int humanRow;
 
 // make some custom characters:
 byte heart[8] = {
@@ -193,12 +197,6 @@ byte human[8]= {
   0b01010,
 };
 
-void debug() {
-  String humanRowStr = String(humanRow);
-  printStr(humanRowStr, 10, 0);
-  
-}
-
 void setup() {
   // create a new character
   lcd.createChar(5, heart);
@@ -237,9 +235,9 @@ void printChar(int charNo, int X, int Y) {
   lcd.write (charNo);
 }
   
-String adjust(String s) {
+String adjust(String s, int length) {
   String result = s;
-  for (int i = s.length(); i < 3; i++) {
+  for (int i = s.length(); i < length; i++) {
     result = " " + result;
   }
   return result;
@@ -249,79 +247,85 @@ void loop() {
   
   int FIRST_ROW  = 0;
   int SECOND_ROW = 1;
-  
+    
   if (IS_OVER) {
-    printStr("GAME OVER: " + String(score), 0, FIRST_ROW);
+    printStr("GAME OVER: " + adjust(String(score), 3), 0, FIRST_ROW);
   } else {
     
     int HUMAN_CHAR  = 13;
     int TRUCK1_CHAR = 11;
     int TRUCK2_CHAR = 12;
-    
-    String scoreStr = String(score);  
-    printStr(adjust(scoreStr), 0, FIRST_ROW);
-    
-    humanRow = 1;
-    
-    // draw truck
-    printChar(TRUCK1_CHAR, 0, SECOND_ROW);
-    printChar(TRUCK2_CHAR, 1, SECOND_ROW);
-    
     int HUMAN_POSITION = 7;
     
-    //draw a human
-    printChar(HUMAN_CHAR, HUMAN_POSITION, SECOND_ROW);
+    //draw score
+    String scoreStr = String(score);  
+    printStr(adjust(scoreStr, 3), 13, FIRST_ROW);
+           
+    truckPositionX = 0;
+    truckPositionY = random(2);
+
+    // draw truck
+    printChar(TRUCK1_CHAR, truckPositionX, truckPositionY);
+    printChar(TRUCK2_CHAR, truckPositionX+1, truckPositionY);
+
+    guyPositionX = HUMAN_POSITION;
+    guyPositionY = random(2);
     
+    //draw a human
+    printChar(HUMAN_CHAR, HUMAN_POSITION, guyPositionY);
+
     // cycle to move forward
     for (int positionCounter = 0; positionCounter < 14; positionCounter++) {
       
-      char ch;
-      
-      if (Serial.available() > 0) {
+      int valueY = analogRead(joyPinX);
+      delay(100);
   
-        //reading command
-        ch = Serial.read();
+      int valueX = analogRead(joyPinY);
+  
+      String posX = adjust(String(valueX), 4);
+      String posY = adjust(String(valueY), 4);
+      printStr(posX, HUMAN_POSITION+1, SECOND_ROW);
+      printStr(posY, HUMAN_POSITION+5, SECOND_ROW);
+      
+      if (valueX < 400) {
+        printStr("r", 15, SECOND_ROW);
+        score = 0;
+      }
         
-        if (ch == 'r') {
-          score = 0;
-        }
-        
-        if (ch == 'u') {
+        if (valueY > 600) {
+//          printStr("u", 15, SECOND_ROW);
+
           //wipe guy from lower row
-          printStr(" ", HUMAN_POSITION, SECOND_ROW);
+          printStr(" ", HUMAN_POSITION, guyPositionY);
+          
+          //update current row
+          guyPositionY = FIRST_ROW;
           
           //draw guy on upper row
-          printChar(HUMAN_CHAR, HUMAN_POSITION, FIRST_ROW);
-          
-          //update current row
-          humanRow = FIRST_ROW;      
+          printChar(HUMAN_CHAR, HUMAN_POSITION, guyPositionY);          
         } 
-        if (ch == 'd') {
+        if (valueY < 400) {
+//        printStr("d", 15, SECOND_ROW);
           //wipe guy on upper row
-          printStr(" ", HUMAN_POSITION, FIRST_ROW);
-          //draw guy on lower row
-          printChar(HUMAN_CHAR, HUMAN_POSITION, SECOND_ROW);
+          printStr(" ", HUMAN_POSITION, guyPositionY);
           
           //update current row
-          humanRow = SECOND_ROW;
+          guyPositionY = SECOND_ROW;
+
+          //draw guy on lower row
+          printChar(HUMAN_CHAR, HUMAN_POSITION, guyPositionY);
+          
         }     
-  //      lcd.setCursor(0, 0);
-  //      lcd.write(ch);
-      }
-      
-      // scroll one position right:
-  //    lcd.scrollDisplayRight(); 
-  
   
       // wipe previous position of truck
-      printStr("  ", positionCounter, SECOND_ROW);
+      printStr("  ", positionCounter, truckPositionY);
       
       //draw truck on next position
-      printChar(TRUCK1_CHAR, positionCounter+1, SECOND_ROW);    
-      printChar(TRUCK2_CHAR, positionCounter+2, SECOND_ROW);
+      printChar(TRUCK1_CHAR, positionCounter+1, truckPositionY);    
+      printChar(TRUCK2_CHAR, positionCounter+2, truckPositionY);
       
       if (positionCounter+2 == HUMAN_POSITION) {
-        if (humanRow == SECOND_ROW) {
+        if (guyPositionY == truckPositionY) {
           score = score - 1;
         } else {
           score = score + 1;
@@ -338,17 +342,13 @@ void loop() {
       delay(250);
     }
     
-  //  debug();
-      
     delay(1000);
      
     // wipe guy
-    printStr(" ", HUMAN_POSITION, FIRST_ROW);
+    printStr(" ", HUMAN_POSITION, guyPositionY);
     
     //wipe truck 
-    printStr("  ", HUMAN_POSITION-1u
-    u
-    , SECOND_ROW);
+    printStr("  ", HUMAN_POSITION-1, truckPositionY);
   }
 }
 
